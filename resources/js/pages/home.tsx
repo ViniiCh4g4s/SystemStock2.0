@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, useRef, type SVGProps, type ReactNode, type ChangeEvent } from "react";
+import FlashToast from "@/components/flash-toast";
+import { router, usePage } from "@inertiajs/react";
+import { useState, useEffect, useMemo, useRef, type SVGProps, type ReactNode, type ChangeEvent } from "react";
+import { Toaster } from "sonner";
 
 // ── Types ──
 interface StockItem {
-    id: string;
+    id: number;
     name: string;
     category: string;
     qty: number;
@@ -10,6 +13,7 @@ interface StockItem {
     location: string;
     notes: string;
     photos: string[];
+    photoIds: number[];
     createdAt: number;
     updatedAt: number;
 }
@@ -54,11 +58,17 @@ interface EmptyStateProps {
     filtered: boolean;
 }
 
+interface PhotoEntry {
+    url: string;
+    photoId?: number;
+    file?: File;
+}
+
 interface ProductFormProps {
     item: StockItem | null;
     categories: string[];
-    onSave: (item: StockItem) => void;
-    onDelete: (id: string) => void;
+    onSave: (data: { item: StockItem | null; name: string; category: string; qty: number; minQty: number; location: string; notes: string; photos: PhotoEntry[]; newFiles: File[] }) => void;
+    onDelete: (id: number) => void;
     onClose: () => void;
 }
 
@@ -66,7 +76,7 @@ interface ProductDetailProps {
     item: StockItem;
     onEdit: (item: StockItem) => void;
     onClose: () => void;
-    onUpdateQty: (id: string, qty: number) => void;
+    onUpdateQty: (id: number, qty: number) => void;
 }
 
 interface ProductRowProps {
@@ -74,18 +84,10 @@ interface ProductRowProps {
     onClick: () => void;
 }
 
-// ── Persistent Storage Helper ──
-const db = {
-    get: <T,>(key: string, fallback: T): T => {
-        try {
-            const raw = localStorage.getItem(key);
-            return raw ? (JSON.parse(raw) as T) : fallback;
-        } catch { return fallback; }
-    },
-    set: (key: string, val: unknown): void => {
-        try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* quota exceeded */ }
-    },
-};
+interface PageProps {
+    items: StockItem[];
+    [key: string]: unknown;
+}
 
 // ── Icons (inline SVG for zero deps) ──
 function Icon({ d, size = 20, className = "", ...props }: IconProps) {
@@ -104,16 +106,11 @@ const Icons: Record<string, IconComponent> = {
     plus: (p) => <Icon d="M12 5v14M5 12h14" {...p} />,
     search: (p) => <Icon d={["M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z", "M21 21l-4.35-4.35"]} {...p} />,
     x: (p) => <Icon d={["M18 6L6 18", "M6 6l12 12"]} {...p} />,
-    chevDown: (p) => <Icon d="M6 9l6 6 6-6" {...p} />,
     chevLeft: (p) => <Icon d="M15 18l-6-6 6-6" {...p} />,
-    trash: (p) => <Icon d={["M3 6h18", "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2", "M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"]} {...p} />,
     edit: (p) => <Icon d={["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"]} {...p} />,
     camera: (p) => <Icon d={["M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z", "M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"]} {...p} />,
     package: (p) => <Icon d={["M16.5 9.4l-9-5.19", "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z", "M3.27 6.96L12 12.01l8.73-5.05", "M12 22.08V12"]} {...p} />,
     minus: (p) => <Icon d="M5 12h14" {...p} />,
-    filter: (p) => <Icon d={["M22 3H2l8 9.46V19l4 2v-8.54L22 3"]} {...p} />,
-    image: (p) => <Icon d={["M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z", "M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z", "M21 15l-5-5L5 21"]} {...p} />,
-    check: (p) => <Icon d="M20 6L9 17l-5-5" {...p} />,
     sort: (p) => <Icon d={["M11 5h10", "M11 9h7", "M11 13h4", "M3 17l3 3 3-3", "M6 18V4"]} {...p} />,
 };
 
@@ -235,61 +232,6 @@ function EmptyState({ filtered }: EmptyStateProps) {
     );
 }
 
-// ── Compress image to a reasonable size ──
-function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const result = e.target?.result;
-            if (typeof result !== "string") {
-                reject(new Error("Failed to read file"));
-                return;
-            }
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
-                canvas.width = img.width * ratio;
-                canvas.height = img.height * ratio;
-                const ctx = canvas.getContext("2d");
-                if (!ctx) {
-                    reject(new Error("Failed to get canvas context"));
-                    return;
-                }
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL("image/jpeg", quality));
-            };
-            img.onerror = () => reject(new Error("Failed to load image"));
-            img.src = result;
-        };
-        reader.onerror = () => reject(new Error("Failed to read file"));
-        reader.readAsDataURL(file);
-    });
-}
-
-// ── ID generator ──
-const uid = (): string => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-
-// ── Sample Data ──
-const now = Date.now();
-const SAMPLE_ITEMS: StockItem[] = [
-    { id: uid(), name: "Compressor 12.000 BTUs", category: "Compressores", qty: 4, minQty: 2, location: "Prateleira A1", notes: "Rotativo - Gás R-410A. Marca Embraco.", photos: [], createdAt: now - 86400000 * 30, updatedAt: now - 86400000 * 2 },
-    { id: uid(), name: "Compressor 18.000 BTUs", category: "Compressores", qty: 1, minQty: 2, location: "Prateleira A1", notes: "Rotativo - Gás R-22. Verificar disponibilidade com fornecedor.", photos: [], createdAt: now - 86400000 * 28, updatedAt: now - 86400000 * 1 },
-    { id: uid(), name: "Compressor 24.000 BTUs", category: "Compressores", qty: 3, minQty: 1, location: "Prateleira A2", notes: "Scroll - Gás R-410A. Copeland.", photos: [], createdAt: now - 86400000 * 25, updatedAt: now - 86400000 * 5 },
-    { id: uid(), name: "Correia A-42", category: "Correias", qty: 12, minQty: 5, location: "Gaveta B3", notes: "Uso em motores de ventilação das condensadoras.", photos: [], createdAt: now - 86400000 * 20, updatedAt: now - 86400000 * 3 },
-    { id: uid(), name: "Correia A-55", category: "Correias", qty: 3, minQty: 5, location: "Gaveta B3", notes: "Para fan coils de grande porte.", photos: [], createdAt: now - 86400000 * 20, updatedAt: now - 3600000 * 8 },
-    { id: uid(), name: "Correia B-68", category: "Correias", qty: 7, minQty: 3, location: "Gaveta B4", notes: "Uso geral em motores trifásicos.", photos: [], createdAt: now - 86400000 * 18, updatedAt: now - 86400000 * 10 },
-    { id: uid(), name: "Motor Ventilador 1/4 CV", category: "Motores", qty: 2, minQty: 1, location: "Depósito 2", notes: "Motor monofásico 220V. Eixo 12mm.", photos: [], createdAt: now - 86400000 * 15, updatedAt: now - 86400000 * 4 },
-    { id: uid(), name: "Motor Ventilador 1/2 CV", category: "Motores", qty: 0, minQty: 1, location: "Depósito 2", notes: "ESGOTADO - Fazer pedido urgente! Motor trifásico 380V.", photos: [], createdAt: now - 86400000 * 15, updatedAt: now - 3600000 * 2 },
-    { id: uid(), name: "Motor Ventilador 1 CV", category: "Motores", qty: 1, minQty: 1, location: "Depósito 2", notes: "Trifásico 380V. WEG W22.", photos: [], createdAt: now - 86400000 * 14, updatedAt: now - 86400000 * 7 },
-    { id: uid(), name: "Hélice 400mm 3 Pás", category: "Hélices", qty: 6, minQty: 3, location: "Prateleira C1", notes: "Plástico reforçado. Encaixe eixo 12mm.", photos: [], createdAt: now - 86400000 * 12, updatedAt: now - 86400000 * 6 },
-    { id: uid(), name: "Hélice 500mm 5 Pás", category: "Hélices", qty: 2, minQty: 2, location: "Prateleira C1", notes: "Alumínio. Para condensadoras de grande porte.", photos: [], createdAt: now - 86400000 * 12, updatedAt: now - 86400000 * 1 },
-    { id: uid(), name: "Capacitor 25µF", category: "Componentes Elétricos", qty: 15, minQty: 5, location: "Gaveta D1", notes: "440V. Uso em motores monofásicos de compressor.", photos: [], createdAt: now - 86400000 * 10, updatedAt: now - 86400000 * 3 },
-    { id: uid(), name: "Contator Tripolar 25A", category: "Componentes Elétricos", qty: 4, minQty: 2, location: "Gaveta D2", notes: "Bobina 220V. Schneider LC1D25.", photos: [], createdAt: now - 86400000 * 8, updatedAt: now - 86400000 * 2 },
-    { id: uid(), name: "Filtro Secador 3/8\"", category: "Componentes Frigorígenos", qty: 8, minQty: 4, location: "Prateleira E1", notes: "Solda. Para linhas de líquido até 3TR.", photos: [], createdAt: now - 86400000 * 6, updatedAt: now - 86400000 * 1 },
-    { id: uid(), name: "Gás Refrigerante R-410A (11,3kg)", category: "Componentes Frigorígenos", qty: 2, minQty: 3, location: "Depósito 3 - Área ventilada", notes: "Cilindro descartável. Conferir validade na etiqueta.", photos: [], createdAt: now - 86400000 * 4, updatedAt: now - 3600000 * 5 },
-];
-
 // ── Product Form (Add / Edit) ──
 function ProductForm({ item, categories, onSave, onDelete, onClose }: ProductFormProps) {
     const isEdit = !!item;
@@ -300,33 +242,47 @@ function ProductForm({ item, categories, onSave, onDelete, onClose }: ProductFor
     const [qty, setQty] = useState(item?.qty ?? 1);
     const [minQty, setMinQty] = useState(item?.minQty ?? 0);
     const [notes, setNotes] = useState(item?.notes || "");
-    const [photos, setPhotos] = useState<string[]>(item?.photos || []);
     const [location, setLocation] = useState(item?.location || "");
     const fileRef = useRef<HTMLInputElement>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    const handlePhotos = async (e: ChangeEvent<HTMLInputElement>) => {
+    // Photos: existing (url+photoId) and new (url+file)
+    const [photos, setPhotos] = useState<PhotoEntry[]>(() =>
+        (item?.photos || []).map((url, i) => ({ url, photoId: item?.photoIds?.[i] }))
+    );
+    const [newFiles, setNewFiles] = useState<File[]>([]);
+
+    const handlePhotos = (e: ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
-        const compressed = await Promise.all(files.map((f) => compressImage(f)));
-        setPhotos((prev) => [...prev, ...compressed].slice(0, 5));
+        const remaining = 5 - photos.length;
+        const toAdd = files.slice(0, remaining);
+        const newEntries: PhotoEntry[] = toAdd.map((f) => ({ url: URL.createObjectURL(f), file: f }));
+        setPhotos((prev) => [...prev, ...newEntries]);
+        setNewFiles((prev) => [...prev, ...toAdd]);
+        if (fileRef.current) fileRef.current.value = "";
     };
 
-    const removePhoto = (idx: number) => setPhotos((prev) => prev.filter((_, i) => i !== idx));
+    const removePhoto = (idx: number) => {
+        const removed = photos[idx];
+        setPhotos((prev) => prev.filter((_, i) => i !== idx));
+        if (removed.file) {
+            setNewFiles((prev) => prev.filter((f) => f !== removed.file));
+        }
+    };
 
     const handleSave = () => {
         if (!name.trim()) return;
         const finalCat = showNewCat && newCat.trim() ? newCat.trim() : category;
         onSave({
-            id: item?.id || uid(),
+            item,
             name: name.trim(),
             category: finalCat,
             qty,
             minQty,
+            location: location.trim(),
             notes: notes.trim(),
             photos,
-            location: location.trim(),
-            createdAt: item?.createdAt || Date.now(),
-            updatedAt: Date.now(),
+            newFiles,
         });
     };
 
@@ -358,7 +314,7 @@ function ProductForm({ item, categories, onSave, onDelete, onClose }: ProductFor
                         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
                             {photos.map((p, i) => (
                                 <div key={i} className="relative shrink-0">
-                                    <img src={p} alt="" className="w-20 h-20 rounded-xl object-cover" />
+                                    <img src={p.url} alt="" className="w-20 h-20 rounded-xl object-cover" />
                                     <button onClick={() => removePhoto(i)}
                                             className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm">
                                         {Icons.x({size: 12})}
@@ -514,7 +470,7 @@ function ProductDetail({ item, onEdit, onClose, onUpdateQty }: ProductDetailProp
             <div className="flex-1 overflow-y-auto">
                 {/* Photos */}
                 {item.photos.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto p-4 pb-2 -mx-0">
+                    <div className="flex gap-2 overflow-x-auto p-4 pb-2">
                         {item.photos.map((p, i) => (
                             <img key={i} src={p} alt="" onClick={() => setLightbox(i)}
                                  className="w-28 h-28 rounded-xl object-cover shrink-0 cursor-pointer active:scale-95 transition-transform" />
@@ -630,7 +586,7 @@ function ProductRow({ item, onClick }: ProductRowProps) {
 // ██  MAIN APP
 // ══════════════════════════════════════
 export default function StockApp() {
-    const [items, setItems] = useState<StockItem[]>(() => db.get<StockItem[] | null>("stock_items", null) ?? SAMPLE_ITEMS);
+    const { items } = usePage<PageProps>().props;
     const [view, setView] = useState<ViewMode>("list");
     const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
     const [editItem, setEditItem] = useState<StockItem | null>(null);
@@ -639,9 +595,6 @@ export default function StockApp() {
     const [sortBy, setSortBy] = useState<SortMode>("name");
     const [showSearch, setShowSearch] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
-
-    // Persist
-    useEffect(() => { db.set("stock_items", items); }, [items]);
 
     // Categories
     const categories = useMemo(() => {
@@ -687,29 +640,53 @@ export default function StockApp() {
         , [items]);
 
     // Actions
-    const saveItem = useCallback((item: StockItem) => {
-        setItems((prev) => {
-            const exists = prev.find((i) => i.id === item.id);
-            if (exists) return prev.map((i) => (i.id === item.id ? item : i));
-            return [...prev, item];
+    const saveItem = ({ item, name, category, qty, minQty, location, notes, photos, newFiles }: {
+        item: StockItem | null; name: string; category: string; qty: number; minQty: number;
+        location: string; notes: string; photos: PhotoEntry[]; newFiles: File[];
+    }) => {
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("category", category);
+        formData.append("qty", String(qty));
+        formData.append("min_qty", String(minQty));
+        formData.append("location", location);
+        formData.append("notes", notes);
+
+        // Kept existing photo IDs
+        photos.forEach((p) => {
+            if (p.photoId) formData.append("kept_photo_ids[]", String(p.photoId));
         });
-        setView("list");
-        setEditItem(null);
-    }, []);
 
-    const deleteItem = useCallback((id: string) => {
-        setItems((prev) => prev.filter((i) => i.id !== id));
-        setView("list");
-        setEditItem(null);
-        setSelectedItem(null);
-    }, []);
+        // New files
+        newFiles.forEach((f) => formData.append("photos[]", f));
 
-    const updateQty = useCallback((id: string, qty: number) => {
-        setItems((prev) =>
-            prev.map((i) => (i.id === id ? { ...i, qty, updatedAt: Date.now() } : i))
-        );
+        if (item) {
+            router.post(`/stock/${item.id}`, formData, {
+                onSuccess: () => { setView("list"); setEditItem(null); },
+                preserveScroll: true,
+            });
+        } else {
+            router.post("/stock", formData, {
+                onSuccess: () => { setView("list"); setEditItem(null); },
+                preserveScroll: true,
+            });
+        }
+    };
+
+    const deleteItem = (id: number) => {
+        router.delete(`/stock/${id}`, {
+            onSuccess: () => { setView("list"); setEditItem(null); setSelectedItem(null); },
+            preserveScroll: true,
+        });
+    };
+
+    const updateQty = (id: number, qty: number) => {
+        router.patch(`/stock/${id}/qty`, { qty }, {
+            preserveScroll: true,
+        });
+        // Optimistic update for detail view
         setSelectedItem((prev) => (prev?.id === id ? { ...prev, qty, updatedAt: Date.now() } : prev));
-    }, []);
+    };
 
     const openDetail = (item: StockItem) => { setSelectedItem(item); setView("detail"); };
     const openEdit = (item: StockItem | null) => { setEditItem(item || null); setView("form"); };
@@ -724,6 +701,9 @@ export default function StockApp() {
 
     return (
         <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white max-w-lg mx-auto relative">
+            <Toaster position="top-center" richColors />
+            <FlashToast />
+
             {/* ── Header ── */}
             <div className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-200/50 dark:border-zinc-800/50">
                 <div className="px-4 pt-3 pb-2">
