@@ -5,11 +5,48 @@ namespace App\Http\Controllers;
 use App\Models\StockItem;
 use App\Models\StockItemPhoto;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class StockItemController extends Controller
 {
+    /**
+     * Converte uma imagem para WebP comprimido, mantendo resolução original.
+     */
+    private function storeAsWebp(UploadedFile $file): string
+    {
+        $image = match ($file->getMimeType()) {
+            'image/jpeg' => imagecreatefromjpeg($file->getPathname()),
+            'image/png'  => imagecreatefrompng($file->getPathname()),
+            'image/gif'  => imagecreatefromgif($file->getPathname()),
+            'image/webp' => imagecreatefromwebp($file->getPathname()),
+            'image/bmp'  => imagecreatefrombmp($file->getPathname()),
+            default      => imagecreatefromstring(file_get_contents($file->getPathname())),
+        };
+
+        // Preserva transparência (PNG/GIF)
+        imagepalettetotruecolor($image);
+        imagealphablending($image, true);
+        imagesavealpha($image, true);
+
+        $filename = 'stock-photos/' . Str::ulid() . '.webp';
+        $absolutePath = Storage::disk('public')->path($filename);
+
+        // Garante que o diretório existe
+        $dir = dirname($absolutePath);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        // Qualidade 80 = ótimo equilíbrio compressão/qualidade
+        imagewebp($image, $absolutePath, 80);
+        imagedestroy($image);
+
+        return $filename;
+    }
+
     public function index()
     {
         $items = StockItem::with('photos')
@@ -44,7 +81,7 @@ class StockItemController extends Controller
             'location' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:2000',
             'photos' => 'nullable|array|max:5',
-            'photos.*' => 'image|max:2048',
+            'photos.*' => 'image|max:20480',
         ]);
 
         $item = StockItem::create([
@@ -58,7 +95,7 @@ class StockItemController extends Controller
 
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $i => $photo) {
-                $path = $photo->store('stock-photos', 'public');
+                $path = $this->storeAsWebp($photo);
                 $item->photos()->create(['path' => $path, 'sort_order' => $i]);
             }
         }
@@ -79,7 +116,7 @@ class StockItemController extends Controller
             'location' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:2000',
             'photos' => 'nullable|array|max:5',
-            'photos.*' => 'image|max:2048',
+            'photos.*' => 'image|max:20480',
             'kept_photo_ids' => 'nullable|array',
             'kept_photo_ids.*' => 'integer|exists:stock_item_photos,id',
         ]);
@@ -106,7 +143,7 @@ class StockItemController extends Controller
             $currentCount = $stockItem->photos()->count();
             foreach ($request->file('photos') as $i => $photo) {
                 if ($currentCount + $i >= 5) break;
-                $path = $photo->store('stock-photos', 'public');
+                $path = $this->storeAsWebp($photo);
                 $stockItem->photos()->create(['path' => $path, 'sort_order' => $currentCount + $i]);
             }
         }

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
 /**
 * @see \App\Http\Controllers\StockItemController::store
-* @see app/Http/Controllers/StockItemController.php:37
+* @see app/Http/Controllers/StockItemController.php:74
 * @route '/stock'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\StockItemController::store
-* @see app/Http/Controllers/StockItemController.php:37
+* @see app/Http/Controllers/StockItemController.php:74
 * @route '/stock'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\StockItemController::store
-* @see app/Http/Controllers/StockItemController.php:37
+* @see app/Http/Controllers/StockItemController.php:74
 * @route '/stock'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\StockItemController::store
-* @see app/Http/Controllers/StockItemController.php:37
+* @see app/Http/Controllers/StockItemController.php:74
 * @route '/stock'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \App\Http\Controllers\StockItemController::store
-* @see app/Http/Controllers/StockItemController.php:37
+* @see app/Http/Controllers/StockItemController.php:74
 * @route '/stock'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -57,7 +57,7 @@ store.form = storeForm
 
 /**
 * @see \App\Http\Controllers\StockItemController::update
-* @see app/Http/Controllers/StockItemController.php:72
+* @see app/Http/Controllers/StockItemController.php:109
 * @route '/stock/{stockItem}'
 */
 export const update = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -72,7 +72,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\StockItemController::update
-* @see app/Http/Controllers/StockItemController.php:72
+* @see app/Http/Controllers/StockItemController.php:109
 * @route '/stock/{stockItem}'
 */
 update.url = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -105,7 +105,7 @@ update.url = (args: { stockItem: number | { id: number } } | [stockItem: number 
 
 /**
 * @see \App\Http\Controllers\StockItemController::update
-* @see app/Http/Controllers/StockItemController.php:72
+* @see app/Http/Controllers/StockItemController.php:109
 * @route '/stock/{stockItem}'
 */
 update.post = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -115,7 +115,7 @@ update.post = (args: { stockItem: number | { id: number } } | [stockItem: number
 
 /**
 * @see \App\Http\Controllers\StockItemController::update
-* @see app/Http/Controllers/StockItemController.php:72
+* @see app/Http/Controllers/StockItemController.php:109
 * @route '/stock/{stockItem}'
 */
 const updateForm = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -125,7 +125,7 @@ const updateForm = (args: { stockItem: number | { id: number } } | [stockItem: n
 
 /**
 * @see \App\Http\Controllers\StockItemController::update
-* @see app/Http/Controllers/StockItemController.php:72
+* @see app/Http/Controllers/StockItemController.php:109
 * @route '/stock/{stockItem}'
 */
 updateForm.post = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -137,7 +137,7 @@ update.form = updateForm
 
 /**
 * @see \App\Http\Controllers\StockItemController::updateQty
-* @see app/Http/Controllers/StockItemController.php:120
+* @see app/Http/Controllers/StockItemController.php:157
 * @route '/stock/{stockItem}/qty'
 */
 export const updateQty = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -152,7 +152,7 @@ updateQty.definition = {
 
 /**
 * @see \App\Http\Controllers\StockItemController::updateQty
-* @see app/Http/Controllers/StockItemController.php:120
+* @see app/Http/Controllers/StockItemController.php:157
 * @route '/stock/{stockItem}/qty'
 */
 updateQty.url = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -185,7 +185,7 @@ updateQty.url = (args: { stockItem: number | { id: number } } | [stockItem: numb
 
 /**
 * @see \App\Http\Controllers\StockItemController::updateQty
-* @see app/Http/Controllers/StockItemController.php:120
+* @see app/Http/Controllers/StockItemController.php:157
 * @route '/stock/{stockItem}/qty'
 */
 updateQty.patch = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -195,7 +195,7 @@ updateQty.patch = (args: { stockItem: number | { id: number } } | [stockItem: nu
 
 /**
 * @see \App\Http\Controllers\StockItemController::updateQty
-* @see app/Http/Controllers/StockItemController.php:120
+* @see app/Http/Controllers/StockItemController.php:157
 * @route '/stock/{stockItem}/qty'
 */
 const updateQtyForm = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -210,7 +210,7 @@ const updateQtyForm = (args: { stockItem: number | { id: number } } | [stockItem
 
 /**
 * @see \App\Http\Controllers\StockItemController::updateQty
-* @see app/Http/Controllers/StockItemController.php:120
+* @see app/Http/Controllers/StockItemController.php:157
 * @route '/stock/{stockItem}/qty'
 */
 updateQtyForm.patch = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -227,7 +227,7 @@ updateQty.form = updateQtyForm
 
 /**
 * @see \App\Http\Controllers\StockItemController::destroy
-* @see app/Http/Controllers/StockItemController.php:134
+* @see app/Http/Controllers/StockItemController.php:171
 * @route '/stock/{stockItem}'
 */
 export const destroy = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -242,7 +242,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\StockItemController::destroy
-* @see app/Http/Controllers/StockItemController.php:134
+* @see app/Http/Controllers/StockItemController.php:171
 * @route '/stock/{stockItem}'
 */
 destroy.url = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -275,7 +275,7 @@ destroy.url = (args: { stockItem: number | { id: number } } | [stockItem: number
 
 /**
 * @see \App\Http\Controllers\StockItemController::destroy
-* @see app/Http/Controllers/StockItemController.php:134
+* @see app/Http/Controllers/StockItemController.php:171
 * @route '/stock/{stockItem}'
 */
 destroy.delete = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -285,7 +285,7 @@ destroy.delete = (args: { stockItem: number | { id: number } } | [stockItem: num
 
 /**
 * @see \App\Http\Controllers\StockItemController::destroy
-* @see app/Http/Controllers/StockItemController.php:134
+* @see app/Http/Controllers/StockItemController.php:171
 * @route '/stock/{stockItem}'
 */
 const destroyForm = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -300,7 +300,7 @@ const destroyForm = (args: { stockItem: number | { id: number } } | [stockItem: 
 
 /**
 * @see \App\Http\Controllers\StockItemController::destroy
-* @see app/Http/Controllers/StockItemController.php:134
+* @see app/Http/Controllers/StockItemController.php:171
 * @route '/stock/{stockItem}'
 */
 destroyForm.delete = (args: { stockItem: number | { id: number } } | [stockItem: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
