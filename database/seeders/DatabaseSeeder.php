@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
         if (!App::environment('testing')) {
             $this->createAdminUser();
         }
+
+        $this->call(StockItemSeeder::class);
     }
 
     /**
