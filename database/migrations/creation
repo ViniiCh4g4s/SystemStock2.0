@@ -1,0 +1,30 @@
+php artisan make:migration create_locations_table
+php artisan make:migration create_questions_table
+php artisan make:migration create_secret_words_table
+php artisan make:migration create_factions_table
+php artisan make:migration create_categories_table
+php artisan make:migration create_game_rooms
+
+
+php artisan make:model Location
+php artisan make:model Question
+php artisan make:model SecretWord
+php artisan make:model Faction
+php artisan make:model Category
+php artisan make:model GameRoom
+
+
+php artisan make:seeder LocationSeeder
+php artisan make:seeder QuestionSeeder
+php artisan make:seeder SecretWordSeeder
+php artisan make:seeder FactionSeeder
+php artisan make:seeder CategorySeeder
+
+php artisan make:controller TechnicianController --resource
+php artisan make:controller GameContentController
+php artisan make:controller GameRoomController
+
+
+php artisan make:factory LocationFactory --model=Location
+
+migration, model, seeder, controller, factory

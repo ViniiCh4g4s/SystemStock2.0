@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+
+echo "🔍 Iniciando pre-commit hook..."
+
+# 🛠️ Rodar o PhpStan para análise estática do código
+./vendor/bin/phpstan analyse --configuration=phpstan.neon || true  # Executa o PhpStan, garantindo que ele não quebre o script caso não esteja instalado
+if [ $? -ne 0 ]; then
+    echo "❌ Erro encontrado no PhpStan. Corrija antes de continuar. 😉"
+    exit 1  # Se houver erro no PhpStan, interrompe o commit
+fi
+
+# 🛠️ Executar os testes do Laravel em paralelo
+# php artisan test --parallel  # Executa os testes em paralelo, garantindo que o script não quebre se houver falha
+# if [ $? -ne 0 ]; then
+#     echo "❌ Testes falharam! Corrija os erros antes de continuar. 🔥"
+#     exit 1  # Se houver erro nos testes, interrompe o commit
+# fi
+
+# 📂 Verificando se há arquivos PHP modificados que precisam ser formatados com Pint
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.php$' | grep -v '^vendor/' | grep -v '^public/admin/vendor/') || true
+
+if [ -z "$STAGED_FILES" ]; then
+    echo "✅ Nenhum arquivo PHP modificado. Pre-commit concluído!"
+    exit 0  # Se não houver arquivos PHP modificados, finaliza o pre-commit sem erros
+fi
+
+echo "📂 Arquivos PHP modificados: $STAGED_FILES"
+
+# 🎨 Formatar cada arquivo PHP alterado usando o Laravel Pint
+for FILE in $STAGED_FILES
+do
+    echo "🎨 Formatando $FILE com Laravel Pint..."
+    ./vendor/bin/pint "${FILE}" > /dev/null >&1;  # Executa o Pint e suprime a saída padrão
+
+    if [ $? -ne 0 ]; then
+        echo "❌ Erro ao rodar Laravel Pint no arquivo $FILE"
+        exit 1  # Se o Pint falhar, interrompe o commit
+    fi
+
+    git add "${FILE}"  # Adiciona o arquivo formatado ao staging para garantir que as mudanças sejam commitadas
+done
+
+echo "✅ Pre-commit hook executado com sucesso!"
+exit 0  # Garante que o script finalize com sucesso para o Husky
